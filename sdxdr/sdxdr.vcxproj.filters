@@ -1,0 +1,89 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\dxut">
+      <UniqueIdentifier>{aaefc896-6659-48d6-b39c-e3c89e8acbe1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\dxut">
+      <UniqueIdentifier>{77a37188-d27c-4bb5-8aa0-61b29231f556}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{6f4f828f-2ffd-45e8-a18b-fc02ecfa3657}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dxut\src\DXWindow.cpp">
+      <Filter>Source Files\dxut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dxut\src\mesh.cpp">
+      <Filter>Source Files\dxut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\dxut\src\SimpleCamera.cpp">
+      <Filter>Source Files\dxut</Filter>
+    </ClCompile>
+    <ClCompile Include="deferred_renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\dxut\inc\dxut\cmmn.h">
+      <Filter>Header Files\dxut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\dxut\inc\dxut\d3dx12.h">
+      <Filter>Header Files\dxut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\dxut\inc\dxut\DXDevice.h">
+      <Filter>Header Files\dxut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\dxut\inc\dxut\DXSampleHelper.h">
+      <Filter>Header Files\dxut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\dxut\inc\dxut\dxut.h">
+      <Filter>Header Files\dxut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\dxut\inc\dxut\DXWindow.h">
+      <Filter>Header Files\dxut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\dxut\inc\dxut\mesh.h">
+      <Filter>Header Files\dxut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\dxut\inc\dxut\SimpleCamera.h">
+      <Filter>Header Files\dxut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\dxut\inc\dxut\StepTimer.h">
+      <Filter>Header Files\dxut</Filter>
+    </ClInclude>
+    <ClInclude Include="test_app.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="meshloader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="deferred_renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="basic.ps.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="basic.vs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>
