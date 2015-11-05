@@ -1,8 +1,8 @@
 #include "deferred_renderer.h"
 
-void deferred_renderer::init(DXWindow* w, const vector<shared_ptr<render_object>>& ___ros) {
-	ros = ___ros;
-
+deferred_renderer::deferred_renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_object>>& ___ros)
+	: dv(d), window(w), ros(___ros)
+{
 	dv->create_descriptor_heap(ros.size(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 		D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, ro_cbv_heap, rocbvhi);
 	dv->create_constant_buffer(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
@@ -27,6 +27,11 @@ void deferred_renderer::init(DXWindow* w, const vector<shared_ptr<render_object>
 			*ros[i]->mat = material();
 		}
 	}
+
+	dv->create_descriptor_heap(1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+		rtvheap, rtvhs);
+	dv->create_descriptor_heap(1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+		dsvheap, dsvhs);
 	
 	dv->create_root_signature({
 		DXDevice::root_parameterh::constants(16, 0),
@@ -59,11 +64,52 @@ void deferred_renderer::init(DXWindow* w, const vector<shared_ptr<render_object>
 
 	chk(dv->device->CreateGraphicsPipelineState(&pdesc, IID_PPV_ARGS(&basic_pipeline)));
 
-	dv->free_shaders();
+	init_gbuffer();
 
+	dv->free_shaders();
+}
+
+void deferred_renderer::init_gbuffer() {
+	const static float black_color[] = { 0.f, 0.f, 0.f, 0.f };
+	D3D12_RESOURCE_DESC desc = dv->renderTargets[0]->GetDesc();
+	dv->device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+		D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_RENDER_TARGET, 
+		&CD3DX12_CLEAR_VALUE(desc.Format, black_color),
+		IID_PPV_ARGS(&gbuf_resource));
+	auto dest_rtv_h = CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvheap->GetCPUDescriptorHandleForHeapStart());
+	auto rtvd = D3D12_RENDER_TARGET_VIEW_DESC();
+	rtvd.Format = desc.Format;
+	rtvd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+	rtvd.Texture2DArray.ArraySize = 1;
+	rtvd.Texture2DArray.FirstArraySlice = 0;
+	rtvd.Texture2DArray.MipSlice = 1;
+	rtvd.Texture2DArray.PlaneSlice = 0;
+	for (int i = 0; i < (int)gbufferid::total_count; ++i) {
+		dv->device->CreateRenderTargetView(gbuf_resource.Get(), rtvd,
+			dest_rtv_h);
+		dest_rtv_h.Offset(rtvhs);
+	}
+}
+
+void deferred_renderer::draw_geometry(ComPtr<ID3D12GraphicsCommandList> cmdlist) {
+	cmdlist->SetGraphicsRoot32BitConstants(0, 16, cur_viewproj.m, 0);
+
+	cmdlist->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	ID3D12DescriptorHeap* hps[] = { ro_cbv_heap.Get() };
+	cmdlist->SetDescriptorHeaps(_countof(hps), hps);
+
+	auto cbv_hdl = CD3DX12_GPU_DESCRIPTOR_HANDLE(ro_cbv_heap->GetGPUDescriptorHandleForHeapStart());
+	for (const auto& ro : ros) {
+		cmdlist->SetGraphicsRootDescriptorTable(1, cbv_hdl);
+		ro->msh->draw(cmdlist);
+		cbv_hdl.Offset(rocbvhi);
+	}
 }
 
 void deferred_renderer::render(XMFLOAT4X4 viewproj) {
+	cur_viewproj = viewproj;
+
 	chk(dv->commandAllocator->Reset());
 	
 	if (dv->commandList) {
@@ -89,19 +135,7 @@ void deferred_renderer::render(XMFLOAT4X4 viewproj) {
 	dv->commandList->ClearRenderTargetView(rtvHandle1, clearColor, 0, nullptr);
 	dv->commandList->ClearDepthStencilView(dv->dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-	dv->commandList->SetGraphicsRoot32BitConstants(0, 16, viewproj.m, 0);
-
-	dv->commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	ID3D12DescriptorHeap* hps[] = {ro_cbv_heap.Get()};
-	dv->commandList->SetDescriptorHeaps(_countof(hps), hps);
-
-	auto cbv_hdl = CD3DX12_GPU_DESCRIPTOR_HANDLE(ro_cbv_heap->GetGPUDescriptorHandleForHeapStart());
-	for (const auto& ro : ros) {
-		dv->commandList->SetGraphicsRootDescriptorTable(1, cbv_hdl);
-		ro->msh->draw(dv->commandList);
-		cbv_hdl.Offset(rocbvhi);
-	}
+	draw_geometry(dv->commandList);
 
 	dv->commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dv->renderTargets[dv->frameIndex].Get(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -111,7 +145,8 @@ void deferred_renderer::render(XMFLOAT4X4 viewproj) {
 	dv->execute_command_list();
 }
 
-void deferred_renderer::destroy() {
+deferred_renderer::~deferred_renderer() {
+
 	ro_cbuf_res->Unmap(0, nullptr);
 	ro_cbuf_data = nullptr;
 	for (auto& ro : ros) {
@@ -120,4 +155,6 @@ void deferred_renderer::destroy() {
 			ro->mat = nullptr;
 		}
 	}
+
+	dv = nullptr;
 }

@@ -30,6 +30,7 @@ struct render_object {
 
 class deferred_renderer {
 	DXDevice* dv;
+	DXWindow* window;
 
 	ComPtr<ID3D12DescriptorHeap> ro_cbv_heap; uint32_t rocbvhi;
 
@@ -44,13 +45,28 @@ class deferred_renderer {
 	ComPtr<ID3D12RootSignature> basic_root_sig;
 	ComPtr<ID3D12PipelineState> basic_pipeline;
 
+	XMFLOAT4X4 cur_viewproj;
+	void draw_geometry(ComPtr<ID3D12GraphicsCommandList> cmdlist);
+
+	ComPtr<ID3D12DescriptorHeap> rtvheap, dsvheap;
+	uint32_t rtvhs, dsvhs;
+
+	// G buffer
+	enum class gbufferid {
+		positions, normals, material, diffuse, total_count
+	};
+	ComPtr<ID3D12RootSignature> gbuf_root_sig;
+	ComPtr<ID3D12PipelineState> gbuf_pipeline;
+	ComPtr<ID3D12Resource>		gbuf_resource;
+	void init_gbuffer();
+	void render_gbuffer(ComPtr<ID3D12GraphicsCommandList> cmdlist);
+	// --------
 public:
 	vector<shared_ptr<render_object>> ros;
 
-	deferred_renderer(DXDevice* d) : dv(d) {}
-	void init(DXWindow* w, const vector<shared_ptr<render_object>>& render_objects);
+	deferred_renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_object>>& render_objects);
+
 	void render(XMFLOAT4X4 viewproj);
-	void destroy();
-	~deferred_renderer() { dv = nullptr; }
+	~deferred_renderer();
 };
 
