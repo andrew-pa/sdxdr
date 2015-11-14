@@ -9,6 +9,8 @@ const XMFLOAT4X4 identity_matrix =
 
 struct material {
 	XMFLOAT4 diffuse_color;
+	material() {}
+	material(XMFLOAT4 Kd) : diffuse_color(Kd) {}
 };
 
 struct render_object {

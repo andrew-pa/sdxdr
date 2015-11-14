@@ -28,6 +28,22 @@ struct test_app : public DXWindow, public DXDevice {
 		ros.push_back(make_shared<render_object>(cube_mesh));
 		ros.push_back(make_shared<render_object>(cube_mesh));
 
+		const int size = 3;
+		for (int x = 0; x < size; ++x) {
+			for (int y = 0; y < size; ++y) {
+				for (int z = 0; z < size; ++z) {
+					XMFLOAT4X4 wld;
+					XMStoreFloat4x4(&wld, XMMatrixTranslation(x*5.f, y*5.f, -25.f + z*5.f));
+					ros.push_back(make_shared<render_object>(cube_mesh,
+						material(
+							XMFLOAT4(	0.1f + ((float)x / (float)size), 
+										0.1f + ((float)y / (float)size), 
+										0.1f + ((float)z / (float)size), 1.f)),
+						wld));
+				}
+			}
+		}
+
 
 		dfr = make_unique<renderer>(this, this, ros);
 		dfr->directional_lights.push_back(
