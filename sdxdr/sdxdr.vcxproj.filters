@@ -36,7 +36,7 @@
     <ClCompile Include="..\..\dxut\src\SimpleCamera.cpp">
       <Filter>Source Files\dxut</Filter>
     </ClCompile>
-    <ClCompile Include="deferred_renderer.cpp">
+    <ClCompile Include="renderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -74,7 +74,7 @@
     <ClInclude Include="meshloader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="deferred_renderer.h">
+    <ClInclude Include="renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -83,6 +83,18 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="basic.vs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="gbuffer.ps.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="fsq.vs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="light-directional.ps.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="postprocess.ps.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

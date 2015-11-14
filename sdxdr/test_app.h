@@ -2,14 +2,14 @@
 #include "dxut\dxut.h"
 #include "meshloader.h"
 
-#include "deferred_renderer.h"
+#include "renderer.h"
 
 struct test_app : public DXWindow, public DXDevice {
 	
 	test_app()
 		: DXWindow(800, 600, L"sdxdr test"), DXDevice(), dfr(nullptr) {}
 
-	unique_ptr<deferred_renderer> dfr;
+	unique_ptr<renderer> dfr;
 
 	StepTimer tim;
 
@@ -19,21 +19,26 @@ struct test_app : public DXWindow, public DXDevice {
 	void OnInit() override {
 		init_d3d(this);
 		vector<shared_ptr<render_object>> ros;
-		vector<ComPtr<ID3D12Resource>> upl_res(2);
 
 		commandList = create_command_list(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		vector<vertex> v; vector<uint32_t> i;
 		generate_cube_mesh(v, i, XMFLOAT3(3.f, 3.f, 3.f));
-		auto cube_mesh = make_shared<mesh>(device, commandList, v, i, upl_res[0], upl_res[1]);
+		auto cube_mesh = make_shared<mesh>(this, commandList, v, i);
 		ros.push_back(make_shared<render_object>(cube_mesh));
 		ros.push_back(make_shared<render_object>(cube_mesh));
+
+
+		dfr = make_unique<renderer>(this, this, ros);
+		dfr->directional_lights.push_back(
+			directional_light(XMFLOAT4(0.f, 1.f, 0.f, 0.f),
+				XMFLOAT4(1.f, 1.f, 1.f, 1.f)));
 
 		commandList->Close();
 
 		execute_command_list();
-
-		dfr = make_unique<deferred_renderer>(this, this, ros);
+		wait_for_gpu();
+		empty_upload_pool();
 
 		cam.Init(XMFLOAT3(2.f, 3.f, 5.f));
 	}
@@ -42,6 +47,8 @@ struct test_app : public DXWindow, public DXDevice {
 		start_frame();
 		tim.Tick(nullptr);
 		cam.Update(tim.GetElapsedSeconds());
+		XMStoreFloat4x4(&dfr->cam.viewproj, cam.GetViewMatrix()*cam.GetProjectionMatrix(45.f, aspectRatio));
+		dfr->cam.position = cam.GetPosition();
 
 		float t = tim.GetTotalSeconds();
 		XMStoreFloat4x4(dfr->ros[0]->world, XMMatrixRotationRollPitchYaw(t, t*.5f, t*.25f));
@@ -53,14 +60,13 @@ struct test_app : public DXWindow, public DXDevice {
 	}
 
 	void OnRender() override {
-		
-		XMFLOAT4X4 vp; XMStoreFloat4x4(&vp, cam.GetViewMatrix()*cam.GetProjectionMatrix(45.f, aspectRatio));
-		dfr->render(vp);
-
+		dfr->render();
+		execute_command_list();
 		next_frame();
 	}
 
 	void OnDestroy() override {
+		wait_for_gpu();
 		dfr.reset();
 		destroy_d3d();
 	}

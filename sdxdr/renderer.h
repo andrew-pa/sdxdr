@@ -19,6 +19,18 @@ struct render_object {
 	render_object(shared_ptr<mesh> m, material mt, XMFLOAT4X4 wld = identity_matrix) : msh(m), world(new XMFLOAT4X4(wld)), mat(new material(mt)) {}
 };
 
+struct camera {
+	XMFLOAT4X4 viewproj;
+	XMFLOAT3 position;
+};
+
+struct directional_light {
+	XMFLOAT4 direction;
+	XMFLOAT4 color;
+
+	directional_light(XMFLOAT4 d, XMFLOAT4 c)
+		: direction(d), color(c) {	}
+};
 
 /*
 	Usual world space deferred rendering
@@ -28,12 +40,12 @@ struct render_object {
 	final -> postprocess -> backbuffer
 */
 
-class deferred_renderer {
+class renderer {
 	DXDevice* dv;
 	DXWindow* window;
 
-	ComPtr<ID3D12DescriptorHeap> ro_cbv_heap; uint32_t rocbvhi;
-
+	descriptor_heap ro_cbv_heap;
+	
 	ComPtr<ID3D12Resource> ro_cbuf_res;
 	struct rocbuf {
 		XMFLOAT4X4 wld;
@@ -45,28 +57,17 @@ class deferred_renderer {
 	ComPtr<ID3D12RootSignature> basic_root_sig;
 	ComPtr<ID3D12PipelineState> basic_pipeline;
 
-	XMFLOAT4X4 cur_viewproj;
 	void draw_geometry(ComPtr<ID3D12GraphicsCommandList> cmdlist);
-
-	ComPtr<ID3D12DescriptorHeap> rtvheap, dsvheap;
-	uint32_t rtvhs, dsvhs;
-
-	// G buffer
-	enum class gbufferid {
-		positions, normals, material, diffuse, total_count
-	};
-	ComPtr<ID3D12RootSignature> gbuf_root_sig;
-	ComPtr<ID3D12PipelineState> gbuf_pipeline;
-	ComPtr<ID3D12Resource>		gbuf_resource;
-	void init_gbuffer();
-	void render_gbuffer(ComPtr<ID3D12GraphicsCommandList> cmdlist);
-	// --------
 public:
 	vector<shared_ptr<render_object>> ros;
 
-	deferred_renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_object>>& render_objects);
+	vector<directional_light> directional_lights;
 
-	void render(XMFLOAT4X4 viewproj);
-	~deferred_renderer();
+	camera cam;
+
+	renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_object>>& render_objects);
+
+	void render();
+	~renderer();
 };
 
