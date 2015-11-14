@@ -34,6 +34,43 @@ struct directional_light {
 		: direction(d), color(c) {	}
 };
 
+struct pass {
+	ComPtr<ID3D12RootSignature> root_sig;
+	ComPtr<ID3D12PipelineState> pipeline;
+
+	pass() : root_sig(nullptr), pipeline(nullptr) {}
+	pass(ComPtr<ID3D12RootSignature> rs, ComPtr<ID3D12PipelineState> ps)
+		: root_sig(rs), pipeline(ps) { }
+
+	pass(DXDevice* dv,
+		vector<CD3DX12_ROOT_PARAMETER> rs_params, vector<CD3DX12_STATIC_SAMPLER_DESC> stat_smps,
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC pdsc,
+		wstring name = wstring(),
+		D3D12_ROOT_SIGNATURE_FLAGS rsf = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT) 
+	{
+		dv->create_root_signature(rs_params, stat_smps, root_sig, true, 
+			(name + wstring(L" Root Signature")).c_str(), rsf);
+		pdsc.pRootSignature = root_sig.Get();
+		chk(dv->device->CreateGraphicsPipelineState(&pdsc, IID_PPV_ARGS(&pipeline)));
+		pipeline->SetName((name + wstring(L" Pipeline")).c_str());
+	}
+
+	pass(DXDevice* dv, ComPtr<ID3D12RootSignature> exisitingRS,
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC pdsc,
+		wstring name = wstring()) :
+		root_sig(exisitingRS)
+	{
+		pdsc.pRootSignature = exisitingRS.Get();
+		chk(dv->device->CreateGraphicsPipelineState(&pdsc, IID_PPV_ARGS(&pipeline)));
+		pipeline->SetName((name + wstring(L" Pipeline")).c_str());
+	}
+
+	void apply(ComPtr<ID3D12GraphicsCommandList> cmdlist) {
+		cmdlist->SetPipelineState(pipeline.Get());
+		cmdlist->SetGraphicsRootSignature(root_sig.Get());
+	}
+};
+
 /*
 	Usual world space deferred rendering
 
@@ -41,7 +78,6 @@ struct directional_light {
 	Render lights -> final
 	final -> postprocess -> backbuffer
 */
-
 class renderer {
 	DXDevice* dv;
 	DXWindow* window;
@@ -56,10 +92,33 @@ class renderer {
 	};
 	rocbuf* ro_cbuf_data;
 
-	ComPtr<ID3D12RootSignature> basic_root_sig;
-	ComPtr<ID3D12PipelineState> basic_pipeline;
+	pass basic_pass;
 
 	void draw_geometry(ComPtr<ID3D12GraphicsCommandList> cmdlist);
+	
+	// rtsrv_heap
+	// 0: geometry buffer [position]
+	// 1: geometry buffer [normal]
+	// 2: geometry buffer [diffuse]
+	// 3: geometry buffer [material]
+	descriptor_heap rtsrv_heap;
+	
+	// rtv_heap
+	// 0: geometry buffer [position]
+	// 1: geometry buffer [normal]
+	// 2: geometry buffer [diffuse]
+	// 3: geometry buffer [material]
+	descriptor_heap rtv_heap;
+
+	//-- Geometry Buffer --
+	enum class gbuffer_id : uint32_t {
+		position = 0, normal, diffuse, material, total_count
+	};
+	ComPtr<ID3D12Resource> geometry_buffers[(uint32_t)gbuffer_id::total_count];
+	pass geometry_pass;
+	void create_geometry_buffer_and_pass();
+	void render_geometry_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist);
+	
 public:
 	vector<shared_ptr<render_object>> ros;
 

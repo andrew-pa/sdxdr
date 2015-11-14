@@ -28,7 +28,7 @@ struct test_app : public DXWindow, public DXDevice {
 		ros.push_back(make_shared<render_object>(cube_mesh));
 		ros.push_back(make_shared<render_object>(cube_mesh));
 
-		const int size = 3;
+		const int size = 12;
 		for (int x = 0; x < size; ++x) {
 			for (int y = 0; y < size; ++y) {
 				for (int z = 0; z < size; ++z) {
