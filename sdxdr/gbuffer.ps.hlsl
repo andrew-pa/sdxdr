@@ -10,7 +10,7 @@ struct PSInput
 
 
 struct PSOut {
-	float4 pos : SV_Target0, norm : SV_Target1, mat : SV_Target2, dif : SV_Target3;
+	float4 pos : SV_Target0, norm : SV_Target1, dif : SV_Target2, mat : SV_Target3;
 };
 
 cbuffer cb1 : register(b1)

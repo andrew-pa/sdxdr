@@ -7,7 +7,7 @@
 struct test_app : public DXWindow, public DXDevice {
 	
 	test_app()
-		: DXWindow(800, 600, L"sdxdr test"), DXDevice(), dfr(nullptr) {}
+		: DXWindow(1280, 960, L"sdxdr test"), DXDevice(), dfr(nullptr) {}
 
 	unique_ptr<renderer> dfr;
 
@@ -28,7 +28,7 @@ struct test_app : public DXWindow, public DXDevice {
 		ros.push_back(make_shared<render_object>(cube_mesh));
 		ros.push_back(make_shared<render_object>(cube_mesh));
 
-		const int size = 12;
+		const int size = 8;
 		for (int x = 0; x < size; ++x) {
 			for (int y = 0; y < size; ++y) {
 				for (int z = 0; z < size; ++z) {
@@ -47,8 +47,11 @@ struct test_app : public DXWindow, public DXDevice {
 
 		dfr = make_unique<renderer>(this, this, ros);
 		dfr->directional_lights.push_back(
-			directional_light(XMFLOAT4(0.f, 1.f, 0.f, 0.f),
-				XMFLOAT4(1.f, 1.f, 1.f, 1.f)));
+			directional_light(XMFLOAT4(0.2f, .5f, .6f, 0.f),
+				XMFLOAT4(1.f, .9f, .8f, 1.f)));
+		dfr->directional_lights.push_back(
+			directional_light(XMFLOAT4(0.2f, -.5f, -.6f, 0.f),
+				XMFLOAT4(.8f, .9f, 1.f, 1.f)));
 
 		commandList->Close();
 

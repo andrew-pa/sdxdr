@@ -7,7 +7,8 @@ renderer::renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_obje
 	dv(d), window(w), ros(___ros),
 	ro_cbv_heap(d->device, ___ros.size(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, L"Render Object CBV Heap"),
 	rtv_heap(d->device, (uint32_t)gbuffer_id::total_count, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false),
-	rtsrv_heap(d->device, (uint32_t)gbuffer_id::total_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, L"Render Target SRV Heap")
+	rtsrv_heap(d->device, (uint32_t)gbuffer_id::total_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, L"Render Target SRV Heap"),
+	fsq(mesh::create_full_screen_quad(d, d->commandList))
 {
 	dv->create_constant_buffer(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		ro_cbv_heap, ro_cbuf_res, &ro_cbuf_data, 0, ros.size());
@@ -60,6 +61,32 @@ renderer::renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_obje
 		root_parameterh::constants(16, 0),
 		root_parameterh::descriptor_table(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1),
 	}, {}, pdesc, L"Basic");
+
+	const D3D12_INPUT_ELEMENT_DESC posonly_input_layout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+	};
+	pdesc.InputLayout = { posonly_input_layout, _countof(posonly_input_layout) };
+	pdesc.VS = dv->load_shader(w->GetAssetFullPath(L"fsq.vs.cso"));
+	pdesc.PS = dv->load_shader(w->GetAssetFullPath(L"light-directional.ps.cso"));
+	pdesc.DepthStencilState.DepthEnable = false;
+	pdesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	pdesc.BlendState.RenderTarget[0].BlendEnable = true;
+	pdesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	pdesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+	pdesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+	test_pass = pass(dv, {
+		root_parameterh::constants(2, 0),
+		root_parameterh::constants(8, 1),
+		root_parameterh::descriptor_table({
+			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, 0),
+			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, 1),
+			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0, 2),
+			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 0, 3),
+		})
+	}, {
+		CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_MIP_POINT)
+	}, pdesc, L"Test");
 
 	create_geometry_buffer_and_pass();
 
@@ -195,9 +222,25 @@ void renderer::render() {
 	cmdlist->ClearRenderTargetView(rth, color_black, 0, nullptr);
 	cmdlist->ClearDepthStencilView(dsh, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0., 0, nullptr);
 	
-	basic_pass.apply(cmdlist);
+	/*basic_pass.apply(cmdlist);
 	
-	draw_geometry(cmdlist);
+	draw_geometry(cmdlist);*/
+
+	test_pass.apply(cmdlist);
+	cmdlist->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmdlist->SetDescriptorHeaps(1, &rtsrv_heap.heap);
+	
+	XMFLOAT2 res(window->width, window->height);
+	cmdlist->SetGraphicsRoot32BitConstants(0, 2, &res, 0);
+
+	cmdlist->SetGraphicsRootDescriptorTable(2, rtsrv_heap.gpu_handle(0));
+
+	XMFLOAT4 v[2];
+	for (const auto& l : directional_lights) {
+		v[0] = l.direction; v[1] = l.color;
+		cmdlist->SetGraphicsRoot32BitConstants(1, 8, v, 0);
+		fsq->draw(cmdlist);
+	}
 
 	cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dv->renderTargets[dv->frameIndex].Get(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
