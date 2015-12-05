@@ -1,13 +1,20 @@
 #pragma once
 #include "dxut\dxut.h"
+
 #include "meshloader.h"
 
 #include "renderer.h"
 
+
+
+inline XMFLOAT4 as_xmf4(const aiColor3D& c) {
+	return XMFLOAT4(c.r, c.g, c.b, 1.f);
+}
+
 struct test_app : public DXWindow, public DXDevice {
 	
 	test_app()
-		: DXWindow(1280, 960, L"sdxdr test"), DXDevice(), dfr(nullptr) {}
+		: DXWindow(1280*2, 960*2, L"sdxdr test"), DXDevice(), dfr(nullptr) {}
 
 	unique_ptr<renderer> dfr;
 
@@ -22,13 +29,22 @@ struct test_app : public DXWindow, public DXDevice {
 
 		commandList = create_command_list(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-		vector<vertex> v; vector<uint32_t> i;
+		/*vector<vertex> v; vector<uint32_t> i;
 		generate_cube_mesh(v, i, XMFLOAT3(3.f, 3.f, 3.f));
 		auto cube_mesh = make_shared<mesh>(this, commandList, v, i);
 		ros.push_back(make_shared<render_object>(cube_mesh));
+		load_texture(this, commandList, ws2s(GetAssetFullPath(L"test.tga")), ros[0]->texture);
 		ros.push_back(make_shared<render_object>(cube_mesh));
 
-		const int size = 8;
+		Assimp::Importer imp;
+		auto scn = imp.ReadFile(ws2s(GetAssetFullPath(L"thing.fbx")),
+			aiProcessPreset_TargetRealtime_Quality);
+		load_aimesh(scn->mMeshes[0], v, i);
+		ros.push_back(make_shared<render_object>(
+			make_shared<mesh>(this, commandList, v, i),
+			material(XMFLOAT4(0.85f, 0.9f, 0.9f, 1.f))));
+
+		const int size = 4;
 		for (int x = 0; x < size; ++x) {
 			for (int y = 0; y < size; ++y) {
 				for (int z = 0; z < size; ++z) {
@@ -42,6 +58,26 @@ struct test_app : public DXWindow, public DXDevice {
 						wld));
 				}
 			}
+		}*/
+
+		Assimp::Importer imp;
+		string mpth = "C:\\Users\\andre\\Downloads\\3DModels\\crytek-sponza\\";
+		auto scn = imp.ReadFile(mpth+"sponza.fbx", aiProcessPreset_TargetRealtime_Fast);
+		XMFLOAT4X4 gblscl; XMStoreFloat4x4(&gblscl, XMMatrixScaling(0.2f, 0.2f, 0.2f));
+		for (int m = 0; m < scn->mNumMeshes; ++m) {
+			vector<vertex> v; vector<uint32_t> i;
+			load_aimesh(scn->mMeshes[m], v, i);
+			auto aim = scn->mMaterials[scn->mMeshes[m]->mMaterialIndex];
+			aiColor3D dc,sc;
+			aim->Get(AI_MATKEY_COLOR_DIFFUSE, dc);
+			aim->Get(AI_MATKEY_COLOR_SPECULAR, sc);
+			auto ro = make_shared<render_object>(make_shared<mesh>(this, commandList, v, i), material(as_xmf4(dc), as_xmf4(sc)), gblscl);
+			ros.push_back(ro);
+			aiString pth;
+			if (aim->GetTexture(aiTextureType_DIFFUSE, 0, &pth) == aiReturn_SUCCESS) {
+				load_texture(this, commandList, mpth + pth.C_Str(),
+					ro->texture);
+			}
 		}
 
 
@@ -50,7 +86,7 @@ struct test_app : public DXWindow, public DXDevice {
 			directional_light(XMFLOAT4(0.2f, .5f, .6f, 0.f),
 				XMFLOAT4(1.f, .9f, .8f, 1.f)));
 		dfr->directional_lights.push_back(
-			directional_light(XMFLOAT4(0.2f, -.5f, -.6f, 0.f),
+			directional_light(XMFLOAT4(-0.2f, -.5f, -.6f, 0.f),
 				XMFLOAT4(.8f, .9f, 1.f, 1.f)));
 
 		commandList->Close();
@@ -69,13 +105,16 @@ struct test_app : public DXWindow, public DXDevice {
 		XMStoreFloat4x4(&dfr->cam.viewproj, cam.GetViewMatrix()*cam.GetProjectionMatrix(45.f, aspectRatio));
 		dfr->cam.position = cam.GetPosition();
 
-		float t = tim.GetTotalSeconds();
+		/*float t = tim.GetTotalSeconds();
 		XMStoreFloat4x4(dfr->ros[0]->world, XMMatrixRotationRollPitchYaw(t, t*.5f, t*.25f));
 		dfr->ros[0]->mat->diffuse_color = XMFLOAT4(sin(t)*.5f+.5f, cos(t)*.5f+.5f, sin(1.f-t)*.5f+.5f, 1.f);
 	
 		XMStoreFloat4x4(dfr->ros[1]->world, XMMatrixRotationRollPitchYaw(t*.25, t*.5f, t)*XMMatrixTranslation(6.f, 0.f, 0.f));
 		dfr->ros[1]->mat->diffuse_color = XMFLOAT4(cos(t)*.5f + .5f, sin(t)*.5f + .5f, cos(1.f - t)*.5f + .5f, 1.f);
 
+		XMStoreFloat4x4(dfr->ros[2]->world, 
+			XMMatrixScaling(50.f,50.f,50.f)*XMMatrixRotationRollPitchYaw(t*.25, t*.5f, t*3.f)*XMMatrixTranslation(13.f, 0.f, 0.f));*/
+		
 	}
 
 	void OnRender() override {

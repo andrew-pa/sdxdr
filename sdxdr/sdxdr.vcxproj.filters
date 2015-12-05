@@ -22,6 +22,12 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{6f4f828f-2ffd-45e8-a18b-fc02ecfa3657}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\soil">
+      <UniqueIdentifier>{8a15f7bf-e60d-49db-addb-977f087fb4d5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\soil">
+      <UniqueIdentifier>{f158fc42-ee93-47ed-8cb2-ee43ba268b4c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -38,6 +44,18 @@
     </ClCompile>
     <ClCompile Include="renderer.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="soil\image_DXT.c">
+      <Filter>Source Files\soil</Filter>
+    </ClCompile>
+    <ClCompile Include="soil\image_helper.c">
+      <Filter>Source Files\soil</Filter>
+    </ClCompile>
+    <ClCompile Include="soil\SOIL.c">
+      <Filter>Source Files\soil</Filter>
+    </ClCompile>
+    <ClCompile Include="soil\stb_image_aug.c">
+      <Filter>Source Files\soil</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -76,6 +94,24 @@
     </ClInclude>
     <ClInclude Include="renderer.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="soil\image_DXT.h">
+      <Filter>Header Files\soil</Filter>
+    </ClInclude>
+    <ClInclude Include="soil\image_helper.h">
+      <Filter>Header Files\soil</Filter>
+    </ClInclude>
+    <ClInclude Include="soil\SOIL.h">
+      <Filter>Header Files\soil</Filter>
+    </ClInclude>
+    <ClInclude Include="soil\stb_image_aug.h">
+      <Filter>Header Files\soil</Filter>
+    </ClInclude>
+    <ClInclude Include="soil\stbi_DDS_aug.h">
+      <Filter>Header Files\soil</Filter>
+    </ClInclude>
+    <ClInclude Include="soil\stbi_DDS_aug_c.h">
+      <Filter>Header Files\soil</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -1,20 +1,68 @@
 #include "renderer.h"
 
 const float color_black[] = { 0.f,0.f,0.f,0.f };
+const float color_white[] = { 1.f,1.f,1.f,1.f };
 
 #pragma region Initalization
+uint32_t count_textured_objects(const vector<shared_ptr<render_object>>& ros) {
+	uint32_t c = 0;
+	for (const auto& ro : ros) {
+		if (ro->texture != nullptr) c++;
+	}
+	return c;
+}
+
 renderer::renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_object>>& ___ros) :
 	dv(d), window(w), ros(___ros),
-	ro_cbv_heap(d->device, ___ros.size(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, L"Render Object CBV Heap"),
-	rtv_heap(d->device, (uint32_t)gbuffer_id::total_count, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false),
-	rtsrv_heap(d->device, (uint32_t)gbuffer_id::total_count, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, L"Render Target SRV Heap"),
+	ro_cbv_heap(d->device, ___ros.size() + count_textured_objects(___ros) + 1/*blank texture*/, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, L"Render Object CBV Heap"),
+	rtv_heap(d->device, (uint32_t)gbuffer_id::total_count + 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false),
+	rtsrv_heap(d->device, (uint32_t)gbuffer_id::total_count + 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, L"Render Target SRV Heap"),
 	fsq(mesh::create_full_screen_quad(d, d->commandList))
 {
+	//this buffer should have all the render_objects first, then SRVs 
 	dv->create_constant_buffer(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		ro_cbv_heap, ro_cbuf_res, &ro_cbuf_data, 0, ros.size());
 	ro_cbuf_res->SetName(L"Render Object CBuf Data");
 
-	for (int i = 0; i < ros.size(); ++i) {
+	{
+		D3D12_RESOURCE_DESC rsd = {};
+		rsd.Width = rsd.Height = 1;
+		D3D12_SUBRESOURCE_DATA txd = {};
+		txd.pData = color_white;
+
+		rsd.MipLevels = 1;
+		rsd.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		rsd.Flags = D3D12_RESOURCE_FLAG_NONE;
+		rsd.DepthOrArraySize = 1;
+		rsd.SampleDesc.Count = 1;
+		rsd.SampleDesc.Quality = 1;
+		rsd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+		chk(dv->device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&rsd, D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+			IID_PPV_ARGS(&blank_texture)));
+		const uint32_t subres_cnt = 1;
+		const uint64_t uplbuf_siz = GetRequiredIntermediateSize(blank_texture.Get(), 0, subres_cnt);
+
+		auto txupl = dv->new_upload_resource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(uplbuf_siz),
+			D3D12_RESOURCE_STATE_GENERIC_READ);
+
+		txd.RowPitch = rsd.Width * 4;
+		txd.SlicePitch = rsd.Width * rsd.Height * 4;
+
+		UpdateSubresources(dv->commandList.Get(), blank_texture.Get(), txupl.Get(), 0, 0, 1, &txd);
+		dv->commandList->ResourceBarrier(1,
+			&CD3DX12_RESOURCE_BARRIER::Transition(blank_texture.Get(),
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	}
+
+	for (int i = 0, ti = 0; i < ros.size(); ++i) {
 		if (ros[i]->world != nullptr) {
 			memcpy(&ro_cbuf_data[i].wld, ros[i]->world, sizeof(XMFLOAT4X4));
 			delete ros[i]->world;
@@ -33,7 +81,16 @@ renderer::renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_obje
 			ros[i]->mat = &ro_cbuf_data[i].mat;
 			*ros[i]->mat = material();
 		}
+		if (ros[i]->texture != nullptr) {
+			ros[i]->srv_idx = ros.size() + ti + 1; ti++;
+			dv->device->CreateShaderResourceView(
+				ros[i]->texture.Get(), nullptr, 
+				ro_cbv_heap.cpu_handle(ros[i]->srv_idx));
+		}
+		else ros[i]->srv_idx = ros.size();
 	}
+
+	dv->device->CreateShaderResourceView(blank_texture.Get(), nullptr, ro_cbv_heap.cpu_handle(ros.size()));
 
 	const D3D12_INPUT_ELEMENT_DESC input_layout[] =
 	{
@@ -60,35 +117,26 @@ renderer::renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_obje
 	basic_pass = pass(dv, {
 		root_parameterh::constants(16, 0),
 		root_parameterh::descriptor_table(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1),
-	}, {}, pdesc, L"Basic");
-
-	const D3D12_INPUT_ELEMENT_DESC posonly_input_layout[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-	};
-	pdesc.InputLayout = { posonly_input_layout, _countof(posonly_input_layout) };
-	pdesc.VS = dv->load_shader(w->GetAssetFullPath(L"fsq.vs.cso"));
-	pdesc.PS = dv->load_shader(w->GetAssetFullPath(L"light-directional.ps.cso"));
-	pdesc.DepthStencilState.DepthEnable = false;
-	pdesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-	pdesc.BlendState.RenderTarget[0].BlendEnable = true;
-	pdesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	pdesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
-	pdesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
-	test_pass = pass(dv, {
-		root_parameterh::constants(2, 0),
-		root_parameterh::constants(8, 1),
-		root_parameterh::descriptor_table({
-			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, 0),
-			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, 1),
-			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0, 2),
-			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 0, 3),
-		})
+		root_parameterh::descriptor_table(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0)
 	}, {
-		CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_MIP_POINT)
-	}, pdesc, L"Test");
+		CD3DX12_STATIC_SAMPLER_DESC(0)
+	}, pdesc, L"Basic");
+	
+	{
+		auto d = dv->renderTargets[0]->GetDesc();
+		d.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		chk(dv->device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE, &d, 
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, 
+			&CD3DX12_CLEAR_VALUE(d.Format, color_black),
+			IID_PPV_ARGS(&interm_buffer)));
+		dv->device->CreateRenderTargetView(interm_buffer.Get(), nullptr, rtv_heap.cpu_handle(4));
+		dv->device->CreateShaderResourceView(interm_buffer.Get(), nullptr, rtsrv_heap.cpu_handle(4));
+	}
 
 	create_geometry_buffer_and_pass();
+	create_directional_light_pass();
+	create_postprocess_pass();
 
 	dv->free_shaders();
 }
@@ -103,7 +151,7 @@ void renderer::create_geometry_buffer_and_pass() {
 	for (uint32_t i = 0; i < (uint32_t)gbuffer_id::total_count; ++i) {
 		chk(dv->device->CreateCommittedResource(&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE, &desc,
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+			D3D12_RESOURCE_STATE_COPY_SOURCE,
 			&CD3DX12_CLEAR_VALUE(desc.Format, color_black), 
 			IID_PPV_ARGS(&(geometry_buffers[i]))));
 		dv->device->CreateShaderResourceView(geometry_buffers[i].Get(), nullptr,
@@ -136,6 +184,74 @@ void renderer::create_geometry_buffer_and_pass() {
 	pdesc.SampleDesc.Count = 1;
 	geometry_pass = pass(dv, basic_pass.root_sig, pdesc, L"Geometry Pass");
 }
+
+const D3D12_INPUT_ELEMENT_DESC posonly_input_layout[] =
+{
+	{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0,  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+};
+void renderer::create_directional_light_pass() {
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pdesc = {};
+
+	pdesc.InputLayout = { posonly_input_layout, _countof(posonly_input_layout) };
+	pdesc.VS = dv->load_shader(window->GetAssetFullPath(L"fsq.vs.cso"));
+	pdesc.PS = dv->load_shader(window->GetAssetFullPath(L"light-directional.ps.cso"));
+	pdesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	pdesc.RasterizerState.FrontCounterClockwise = true;
+	pdesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	pdesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	pdesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	pdesc.SampleMask = UINT_MAX;
+	pdesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	pdesc.DepthStencilState.DepthEnable = false;
+	pdesc.BlendState.RenderTarget[0].BlendEnable = true;
+	pdesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+	pdesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+	pdesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
+	pdesc.NumRenderTargets = 1;
+	pdesc.RTVFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	pdesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+	pdesc.SampleDesc.Count = 1;
+
+	dir_light_pass = pass(dv, {
+		root_parameterh::constants(2, 0),
+		root_parameterh::constants(8, 1),
+		root_parameterh::descriptor_table({
+		root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, 0),
+		root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, 1),
+			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2, 0, 2),
+			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3, 0, 3),
+		})
+	}, {
+		CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_MIP_POINT)
+	}, pdesc, L"Directional Light Render");
+}
+
+void renderer::create_postprocess_pass() {
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pdesc = {};
+
+	pdesc.InputLayout = { posonly_input_layout, _countof(posonly_input_layout) };
+	pdesc.VS = dv->load_shader(window->GetAssetFullPath(L"fsq.vs.cso"));
+	pdesc.PS = dv->load_shader(window->GetAssetFullPath(L"postprocess.ps.cso"));
+	pdesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	pdesc.RasterizerState.FrontCounterClockwise = true;
+	pdesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	pdesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	pdesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	pdesc.SampleMask = UINT_MAX;
+	pdesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	pdesc.DepthStencilState.DepthEnable = false;
+	pdesc.NumRenderTargets = 1;
+	pdesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	pdesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+	pdesc.SampleDesc.Count = 1;
+
+	postprocess_pass = pass(dv, {
+		root_parameterh::constants(2, 0),
+		root_parameterh::descriptor_table(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, 0)
+	}, {
+		CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_MIP_POINT)
+	}, pdesc, L"Postprocess Render");
+}
 #pragma endregion
 
 #pragma region Rendering
@@ -146,6 +262,8 @@ void renderer::draw_geometry(ComPtr<ID3D12GraphicsCommandList> cmdlist) {
 	for (int i = 0; i < ros.size(); ++i) {
 		cmdlist->SetGraphicsRootDescriptorTable(1,
 			ro_cbv_heap.gpu_handle(i));
+		cmdlist->SetGraphicsRootDescriptorTable(2,
+			ro_cbv_heap.gpu_handle(ros[i]->srv_idx));
 		ros[i]->msh->draw(cmdlist);
 	}
 }
@@ -169,6 +287,35 @@ void renderer::render_geometry_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist) {
 	cmdlist->ClearDepthStencilView(dv->dsvHeap->cpu_handle(), D3D12_CLEAR_FLAG_DEPTH, 1.f, 0., 0, nullptr);
 
 	draw_geometry(cmdlist);
+}
+
+void renderer::render_directional_light_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist) {
+	dir_light_pass.apply(cmdlist);
+	cmdlist->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmdlist->SetDescriptorHeaps(1, &rtsrv_heap.heap);
+
+	XMFLOAT2 res(window->width, window->height);
+	cmdlist->SetGraphicsRoot32BitConstants(0, 2, &res, 0);
+
+	cmdlist->SetGraphicsRootDescriptorTable(2, rtsrv_heap.gpu_handle(0));
+
+	XMFLOAT4 v[2];
+	for (const auto& l : directional_lights) {
+		v[0] = l.direction; v[1] = l.color;
+		cmdlist->SetGraphicsRoot32BitConstants(1, 8, v, 0);
+		fsq->draw(cmdlist);
+	}
+}
+
+void renderer::render_postprocess_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist) {
+	postprocess_pass.apply(cmdlist);
+	cmdlist->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmdlist->SetDescriptorHeaps(1, &rtsrv_heap.heap);
+
+	XMFLOAT2 res(window->width, window->height);
+	cmdlist->SetGraphicsRoot32BitConstants(0, 2, &res, 0);
+	cmdlist->SetGraphicsRootDescriptorTable(1, rtsrv_heap.gpu_handle(4));
+	fsq->draw(cmdlist);
 }
 #pragma endregion
 
@@ -209,38 +356,35 @@ void renderer::render() {
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
 		CD3DX12_RESOURCE_BARRIER::Transition(geometry_buffers[3].Get(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+		CD3DX12_RESOURCE_BARRIER::Transition(interm_buffer.Get(),
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)
 	});
 
 
-	cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dv->renderTargets[dv->frameIndex].Get(),
-		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-	auto rth = dv->rtvHeap->cpu_handle(dv->frameIndex);
-	auto dsh = dv->dsvHeap->cpu_handle(0);
-	cmdlist->OMSetRenderTargets(1, &rth, false, &dsh);
+	
+	//auto rth = dv->rtvHeap->cpu_handle(dv->frameIndex);
+	//auto dsh = dv->dsvHeap->cpu_handle(0);
+	auto rth = rtv_heap.cpu_handle(4);
+	cmdlist->OMSetRenderTargets(1, &rth, false, nullptr);
 
 	cmdlist->ClearRenderTargetView(rth, color_black, 0, nullptr);
-	cmdlist->ClearDepthStencilView(dsh, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0., 0, nullptr);
+	//cmdlist->ClearDepthStencilView(dsh, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0., 0, nullptr);
 	
-	/*basic_pass.apply(cmdlist);
+	render_directional_light_pass(cmdlist);
+
+	dv->resource_barrier(cmdlist, {
+		CD3DX12_RESOURCE_BARRIER::Transition(interm_buffer.Get(),
+			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+		CD3DX12_RESOURCE_BARRIER::Transition(dv->renderTargets[dv->frameIndex].Get(),
+				D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET)
+	});
 	
-	draw_geometry(cmdlist);*/
 
-	test_pass.apply(cmdlist);
-	cmdlist->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	cmdlist->SetDescriptorHeaps(1, &rtsrv_heap.heap);
-	
-	XMFLOAT2 res(window->width, window->height);
-	cmdlist->SetGraphicsRoot32BitConstants(0, 2, &res, 0);
+	rth = dv->rtvHeap->cpu_handle(dv->frameIndex);
+	cmdlist->OMSetRenderTargets(1, &rth, false, nullptr);
 
-	cmdlist->SetGraphicsRootDescriptorTable(2, rtsrv_heap.gpu_handle(0));
-
-	XMFLOAT4 v[2];
-	for (const auto& l : directional_lights) {
-		v[0] = l.direction; v[1] = l.color;
-		cmdlist->SetGraphicsRoot32BitConstants(1, 8, v, 0);
-		fsq->draw(cmdlist);
-	}
+	cmdlist->ClearRenderTargetView(rth, color_black, 0, nullptr);
+	render_postprocess_pass(cmdlist);
 
 	cmdlist->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(dv->renderTargets[dv->frameIndex].Get(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));

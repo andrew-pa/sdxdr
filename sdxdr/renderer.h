@@ -9,7 +9,8 @@ const XMFLOAT4X4 identity_matrix =
 
 struct material {
 	XMFLOAT4 diffuse_color, specular_color;
-	material() {}
+	material() :
+	 diffuse_color(1.f,1.f,1.f,1.f), specular_color(1.f,1.f,1.f,1.f) {}
 	material(XMFLOAT4 Kd, XMFLOAT4 Ks = XMFLOAT4(1.f, 1.f, 1.f, 1.f)) 
 		: diffuse_color(Kd), specular_color(Ks) {}
 };
@@ -18,8 +19,11 @@ struct render_object {
 	XMFLOAT4X4* world;
 	material* mat;
 	shared_ptr<mesh> msh;
-	render_object(shared_ptr<mesh> m) : msh(m), world(nullptr), mat(nullptr) {}
-	render_object(shared_ptr<mesh> m, material mt, XMFLOAT4X4 wld = identity_matrix) : msh(m), world(new XMFLOAT4X4(wld)), mat(new material(mt)) {}
+	ComPtr<ID3D12Resource> texture;
+	int srv_idx;
+	render_object(shared_ptr<mesh> m) : msh(m), world(nullptr), mat(nullptr), texture(nullptr) {}
+	render_object(shared_ptr<mesh> m, material mt, XMFLOAT4X4 wld = identity_matrix, ComPtr<ID3D12Resource> tx = nullptr) 
+		: msh(m), world(new XMFLOAT4X4(wld)), mat(new material(mt)), texture(tx) {}
 };
 
 struct camera {
@@ -98,12 +102,14 @@ class renderer {
 	pass basic_pass;
 
 	void draw_geometry(ComPtr<ID3D12GraphicsCommandList> cmdlist);
+	ComPtr<ID3D12Resource> blank_texture;
 	
 	// rtsrv_heap
 	// 0: geometry buffer [position]
 	// 1: geometry buffer [normal]
 	// 2: geometry buffer [material]
 	// 3: geometry buffer [diffuse]
+	// 4: interm buffer
 	descriptor_heap rtsrv_heap;
 	
 	// rtv_heap
@@ -111,6 +117,7 @@ class renderer {
 	// 1: geometry buffer [normal]
 	// 2: geometry buffer [material]
 	// 3: geometry buffer [diffuse]
+	// 4: interm buffer
 	descriptor_heap rtv_heap;
 
 	//-- Geometry Buffer --
@@ -122,8 +129,17 @@ class renderer {
 	void create_geometry_buffer_and_pass();
 	void render_geometry_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist);
 	
-	pass test_pass;
+	ComPtr<ID3D12Resource> interm_buffer;
 
+	//-- Directional Light Pass --
+	pass dir_light_pass;
+	void create_directional_light_pass();
+	void render_directional_light_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist);
+
+	//-- Postprocess Pass --
+	pass postprocess_pass;
+	void create_postprocess_pass();
+	void render_postprocess_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist);
 public:
 	vector<shared_ptr<render_object>> ros;
 

@@ -128,6 +128,10 @@
     <ClCompile Include="..\..\dxut\src\SimpleCamera.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="soil\image_DXT.c" />
+    <ClCompile Include="soil\image_helper.c" />
+    <ClCompile Include="soil\SOIL.c" />
+    <ClCompile Include="soil\stb_image_aug.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\dxut\inc\dxut\cmmn.h" />
@@ -141,6 +145,12 @@
     <ClInclude Include="..\..\dxut\inc\dxut\StepTimer.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="meshloader.h" />
+    <ClInclude Include="soil\image_DXT.h" />
+    <ClInclude Include="soil\image_helper.h" />
+    <ClInclude Include="soil\SOIL.h" />
+    <ClInclude Include="soil\stbi_DDS_aug.h" />
+    <ClInclude Include="soil\stbi_DDS_aug_c.h" />
+    <ClInclude Include="soil\stb_image_aug.h" />
     <ClInclude Include="test_app.h" />
   </ItemGroup>
   <ItemGroup>
@@ -195,6 +205,8 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
