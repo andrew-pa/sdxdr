@@ -27,9 +27,10 @@ SamplerState	smp : register(s0);
 PSOut main(PSInput inp) 
 {
 	PSOut po;
+	po.dif = dif * dfs.Sample(smp, inp.uv*float2(1.f, -1.f));
+	if (po.dif.a < 0.1f) discard;
 	po.pos = float4(inp.pos_world*.5f + .5f, 0.f);
 	po.norm = float4(inp.normal*.5f+.5f, 0.f);
 	po.mat = spc;
-	po.dif = dif * dfs.Sample(smp, inp.uv*float2(1.f, -1.f));
 	return po;
 }

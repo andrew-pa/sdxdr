@@ -101,7 +101,7 @@ class renderer {
 
 	pass basic_pass;
 
-	void draw_geometry(ComPtr<ID3D12GraphicsCommandList> cmdlist);
+	void draw_geometry(ComPtr<ID3D12GraphicsCommandList> cmdlist, bool shading = true, XMFLOAT4X4* vp = nullptr);
 	ComPtr<ID3D12Resource> blank_texture;
 	
 	// rtsrv_heap
@@ -110,6 +110,7 @@ class renderer {
 	// 2: geometry buffer [material]
 	// 3: geometry buffer [diffuse]
 	// 4: interm buffer
+	// 5: directional light shadow buffer
 	descriptor_heap rtsrv_heap;
 	
 	// rtv_heap
@@ -119,6 +120,10 @@ class renderer {
 	// 3: geometry buffer [diffuse]
 	// 4: interm buffer
 	descriptor_heap rtv_heap;
+
+	// dsv_heap
+	// 0: diretional light shadow buffer
+	descriptor_heap dsv_heap; 
 
 	//-- Geometry Buffer --
 	enum class gbuffer_id : uint32_t {
@@ -132,7 +137,9 @@ class renderer {
 	ComPtr<ID3D12Resource> interm_buffer;
 
 	//-- Directional Light Pass --
-	pass dir_light_pass;
+	ComPtr<ID3D12Resource> shadow_dir_light_buffer; 
+	D3D12_VIEWPORT shadow_dir_light_vp;
+	pass dir_light_pass, shadow_dir_light_pass;
 	void create_directional_light_pass();
 	void render_directional_light_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist);
 
