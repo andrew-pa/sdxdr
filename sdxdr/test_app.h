@@ -14,7 +14,7 @@ inline XMFLOAT4 as_xmf4(const aiColor3D& c) {
 struct test_app : public DXWindow, public DXDevice {
 	
 	test_app()
-		: DXWindow(1280, 960, L"sdxdr test"), DXDevice(), dfr(nullptr) {}
+		: DXWindow(1280*2, 960*2, L"sdxdr test"), DXDevice(), dfr(nullptr) {}
 
 	unique_ptr<renderer> dfr;
 
