@@ -44,12 +44,12 @@ struct test_app : public DXWindow, public DXDevice {
 			make_shared<mesh>(this, commandList, v, i),
 			material(XMFLOAT4(0.85f, 0.9f, 0.9f, 1.f))));
 
-		/*const int size = 6;
+		const int size = 3;
 		for (int x = 0; x < size; ++x) {
 			for (int y = 0; y < size; ++y) {
 				for (int z = 0; z < size; ++z) {
 					XMFLOAT4X4 wld;
-					XMStoreFloat4x4(&wld, XMMatrixTranslation(x*5.f, y*5.f+3.f, -25.f + z*5.f));
+					XMStoreFloat4x4(&wld, XMMatrixTranslation(x*5.f, y*5.f+3.f, 12.f + z*5.f));
 					ros.push_back(make_shared<render_object>(cube_mesh,
 						material(
 							XMFLOAT4(	0.1f + ((float)x / (float)size), 
@@ -58,7 +58,7 @@ struct test_app : public DXWindow, public DXDevice {
 						wld));
 				}
 			}
-		}*/
+		}
 
 		XMFLOAT4X4 w; XMStoreFloat4x4(&w, XMMatrixScaling(16.f, 0.2f, 16.f) );
 		ros.push_back(make_shared<render_object>(cube_mesh, material(XMFLOAT4(0.2f, 0.2f, 0.2f,1.f)), w));
@@ -92,10 +92,17 @@ struct test_app : public DXWindow, public DXDevice {
 		dfr = make_unique<renderer>(this, this, ros);
 		dfr->directional_lights.push_back(
 			directional_light(XMFLOAT4(0.2f, .7f, .3f, 0.f),
-				XMFLOAT4(1.f, .9f, .8f, 1.f)));
+				XMFLOAT4(1.f, .9f, .8f, 1.f), true));
+		dfr->directional_lights.push_back(
+			directional_light(XMFLOAT4(0.2f, .7f, -.3f, 0.f),
+				XMFLOAT4(.9f, 1.f, .8f, 1.f), true));
+		dfr->directional_lights.push_back(
+			directional_light(XMFLOAT4(-0.2f, .7f, .3f, 0.f),
+				XMFLOAT4(.8f, .9f, 1.f, 1.f), true));
+
 		dfr->directional_lights.push_back(
 			directional_light(XMFLOAT4(-0.2f, -.5f, -.6f, 0.f),
-				XMFLOAT4(.8f, .9f, 1.f, 1.f)));
+				XMFLOAT4(.4f, .6f, .8f, 1.f), false));
 
 		commandList->Close();
 

@@ -339,31 +339,34 @@ void renderer::render_geometry_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist) {
 
 void renderer::render_directional_light_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist) {
 
-	XMMATRIX ligP = XMMatrixOrthographicRH(32.f, 32.f, 1.f, 20.f), ligV;
+	XMMATRIX ligP, ligV;
 	XMVECTOR vL;
 	XMFLOAT4X4 ligT;
 	XMFLOAT4 v[2];
 	XMFLOAT2 res(window->width, window->height);
 	
 	for (const auto& l : directional_lights) {
-		dv->resource_barrier(cmdlist, {
-			CD3DX12_RESOURCE_BARRIER::Transition(shadow_dir_light_buffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE)
-		});
-		shadow_dir_light_pass.apply(cmdlist);
-		cmdlist->RSSetViewports(1, &shadow_dir_light_vp);
-		cmdlist->OMSetRenderTargets(0, nullptr, false, &dsv_heap.cpu_handle(0));
-		cmdlist->ClearDepthStencilView(dsv_heap.cpu_handle(0), D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
-		
-		vL = XMLoadFloat4(&l.direction);
-		ligV = XMMatrixLookToRH(vL*19.9f, -vL, XMVectorSet(1, 0, 0, 0));
-		XMStoreFloat4x4(&ligT, ligV * ligP);
+		if (l.casts_shadow) {
+			dv->resource_barrier(cmdlist, {
+				CD3DX12_RESOURCE_BARRIER::Transition(shadow_dir_light_buffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE)
+			});
+			shadow_dir_light_pass.apply(cmdlist);
+			cmdlist->RSSetViewports(1, &shadow_dir_light_vp);
+			cmdlist->OMSetRenderTargets(0, nullptr, false, &dsv_heap.cpu_handle(0));
+			cmdlist->ClearDepthStencilView(dsv_heap.cpu_handle(0), D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 
-		draw_geometry(cmdlist, false, &ligT);
-		dv->resource_barrier(cmdlist, {
-			CD3DX12_RESOURCE_BARRIER::Transition(shadow_dir_light_buffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-		});
+			vL = XMLoadFloat4(&l.direction);
+			ligP = XMMatrixOrthographicRH(l.scene_radius, l.scene_radius, 1.f, l.scene_radius);
+			ligV = XMMatrixLookToRH(vL*(l.scene_radius-0.1f), -vL, XMVectorSet(1, 0, 0, 0));
+			XMStoreFloat4x4(&ligT, ligV * ligP);
 
-		dv->set_default_viewport(cmdlist);
+			draw_geometry(cmdlist, false, &ligT);
+			dv->resource_barrier(cmdlist, {
+				CD3DX12_RESOURCE_BARRIER::Transition(shadow_dir_light_buffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+			});
+			dv->set_default_viewport(cmdlist);
+		}
+
 		auto rth = rtv_heap.cpu_handle(4);
 		cmdlist->OMSetRenderTargets(1, &rth, false, nullptr);
 

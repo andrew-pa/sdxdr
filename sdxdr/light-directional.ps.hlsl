@@ -42,7 +42,7 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET
 	pL.y = 1.f - pL.y;
 	//pL.z = pL.z * 0.5 + 0.5;
 	float pLd = shadow_map.Sample(shadow_smp, pL.xy);
-	float s = pL.z-0.01f < pLd ? 1.f : 0.4f;
+	float s = pL.z-0.01f < pLd ? 1.f : 0.f;
 	return //uv.x > 0.5f && uv.y > 0.5f ?
 		//shadow_map.Sample(shadow_smp, (uv-0.5f)*2.f) :
 		//float4(abs(pL.xy), 0.f, 0.f);

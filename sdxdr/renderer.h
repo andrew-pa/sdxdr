@@ -35,8 +35,11 @@ struct directional_light {
 	XMFLOAT4 direction;
 	XMFLOAT4 color;
 
-	directional_light(XMFLOAT4 d, XMFLOAT4 c)
-		: direction(d), color(c) {	}
+	bool casts_shadow;
+	float scene_radius;
+
+	directional_light(XMFLOAT4 d, XMFLOAT4 c, bool cshdw, float scrrad = 32.f)
+		: direction(d), color(c), casts_shadow(cshdw), scene_radius(scrrad) {	}
 };
 
 struct pass {
