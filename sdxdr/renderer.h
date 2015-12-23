@@ -113,7 +113,7 @@ class renderer {
 	// 2: geometry buffer [material]
 	// 3: geometry buffer [diffuse]
 	// 4: interm buffer
-	// 5: directional light shadow buffer
+	// 5: directional light shadow buffers [tex array]
 	descriptor_heap rtsrv_heap;
 	
 	// rtv_heap
@@ -124,9 +124,6 @@ class renderer {
 	// 4: interm buffer
 	descriptor_heap rtv_heap;
 
-	// dsv_heap
-	// 0: diretional light shadow buffer
-	descriptor_heap dsv_heap; 
 
 	//-- Geometry Buffer --
 	enum class gbuffer_id : uint32_t {
@@ -142,6 +139,7 @@ class renderer {
 	//-- Directional Light Pass --
 	ComPtr<ID3D12Resource> shadow_dir_light_buffer; 
 	D3D12_VIEWPORT shadow_dir_light_vp;
+	descriptor_heap shadow_dir_light_dsv_heap;
 	pass dir_light_pass, shadow_dir_light_pass;
 	void create_directional_light_pass();
 	void render_directional_light_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist);

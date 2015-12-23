@@ -17,7 +17,7 @@ renderer::renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_obje
 	ro_cbv_heap(d->device, ___ros.size() + count_textured_objects(___ros) + 1/*blank texture*/, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, L"Render Object CBV Heap"),
 	rtv_heap(d->device, (uint32_t)gbuffer_id::total_count + 1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false, L"Renderer Render Target Heap"),
 	rtsrv_heap(d->device, (uint32_t)gbuffer_id::total_count + 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, L"Render Target SRV Heap"),
-	dsv_heap(d->device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false, L"Renderer Depth Stencil Heap"),
+	shadow_dir_light_dsv_heap(d->device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false, L"Directional Light Shadow Depth Stencil Heap"),
 	fsq(mesh::create_full_screen_quad(d, d->commandList))
 {
 	//this buffer should have all the render_objects first, then SRVs 
@@ -233,14 +233,15 @@ void renderer::create_directional_light_pass() {
 	dsd.Format = DXGI_FORMAT_D32_FLOAT;
 	dsd.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 
+	const uint32_t shadow_map_res = 1024;
 	chk(dv->device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32_TYPELESS, 1024, 1024, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
+		&CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32_TYPELESS, shadow_map_res, shadow_map_res, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		&CD3DX12_CLEAR_VALUE(dsd.Format, 1.f, 0), IID_PPV_ARGS(&shadow_dir_light_buffer)));
 	dv->device->CreateDepthStencilView(shadow_dir_light_buffer.Get(), &dsd,
-		dsv_heap.cpu_handle(0));
+		shadow_dir_light_dsv_heap.cpu_handle(0));
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srd = {};
 	srd.Format = DXGI_FORMAT_R32_FLOAT;
@@ -251,7 +252,7 @@ void renderer::create_directional_light_pass() {
 		rtsrv_heap.cpu_handle(5));
 
 	shadow_dir_light_vp = dv->viewport;
-	shadow_dir_light_vp.Height  = shadow_dir_light_vp.Width = 1024;
+	shadow_dir_light_vp.Height  = shadow_dir_light_vp.Width = shadow_map_res;
 	
 	pdesc.InputLayout = { basic_input_layout, _countof(basic_input_layout) };
 	pdesc.VS = dv->load_shader(window->GetAssetFullPath(L"basic.vs.cso"));
@@ -270,7 +271,7 @@ void renderer::create_directional_light_pass() {
 	shadow_dir_light_pass = pass(dv, {
 		root_parameterh::constants(16, 0),
 		root_parameterh::descriptor_table(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1),
-	}, {}, pdesc, L"Shadow Pass for Directional Lights");
+	}, {}, pdesc, L"Shadow for Directional Lights");
 }
 
 void renderer::create_postprocess_pass() {
@@ -352,8 +353,8 @@ void renderer::render_directional_light_pass(ComPtr<ID3D12GraphicsCommandList> c
 			});
 			shadow_dir_light_pass.apply(cmdlist);
 			cmdlist->RSSetViewports(1, &shadow_dir_light_vp);
-			cmdlist->OMSetRenderTargets(0, nullptr, false, &dsv_heap.cpu_handle(0));
-			cmdlist->ClearDepthStencilView(dsv_heap.cpu_handle(0), D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
+			cmdlist->OMSetRenderTargets(0, nullptr, false, &shadow_dir_light_dsv_heap.cpu_handle(0));
+			cmdlist->ClearDepthStencilView(shadow_dir_light_dsv_heap.cpu_handle(0), D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 
 			vL = XMLoadFloat4(&l.direction);
 			ligP = XMMatrixOrthographicRH(l.scene_radius, l.scene_radius, 1.f, l.scene_radius);

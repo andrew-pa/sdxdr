@@ -34,17 +34,24 @@ float4 main(float4 pos : SV_POSITION) : SV_TARGET
 	float ndl = max(0.f, dot(n, L));
 
 	//shadows
+	float s = 0.f;
 	float3 pw = position.Sample(smp, uv).xyz*float3(2.f, 2.f, 2.f) - float3(1.f, 1.f, 1.f);
 	float4 pL = mul(float4(pw, 1.f), Lp);
 	pL /= pL.w;
 	pL.x = (pL.x * 0.5) + 0.5;
 	pL.y = (pL.y * 0.5) + 0.5;
 	pL.y = 1.f - pL.y;
-	//pL.z = pL.z * 0.5 + 0.5;
-	float pLd = shadow_map.Sample(shadow_smp, pL.xy);
-	float s = pL.z-0.01f < pLd ? 1.f : 0.f;
+	float bias = max(0.05 * (1.0 - dot(n, L)), 0.005);
+	for (int x = -1; x <= 1; ++x) {
+		for (int y = -1; y <= 1; ++y) {
+			float pLd = shadow_map.Sample(shadow_smp, pL.xy, int2(x, y));
+			s += pL.z - bias < pLd ? 1.f : 0.f;
+		}
+	}
+	s /= 9.f;
+	
 	return //uv.x > 0.5f && uv.y > 0.5f ?
 		//shadow_map.Sample(shadow_smp, (uv-0.5f)*2.f) :
-		//float4(abs(pL.xy), 0.f, 0.f);
+		//float4(abs(pL.xy), 0.f, 1.f);
 		diffuse.Sample(smp, uv)*ndl*Lc*s;
 }

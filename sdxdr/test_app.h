@@ -14,7 +14,7 @@ inline XMFLOAT4 as_xmf4(const aiColor3D& c) {
 struct test_app : public DXWindow, public DXDevice {
 	
 	test_app()
-		: DXWindow(1280*2, 960*2, L"sdxdr test"), DXDevice(), dfr(nullptr) {}
+		: DXWindow(1280, 960, L"sdxdr test"), DXDevice(), dfr(nullptr) {}
 
 	unique_ptr<renderer> dfr;
 
@@ -44,12 +44,12 @@ struct test_app : public DXWindow, public DXDevice {
 			make_shared<mesh>(this, commandList, v, i),
 			material(XMFLOAT4(0.85f, 0.9f, 0.9f, 1.f))));
 
-		const int size = 3;
+		/*const int size = 4;
 		for (int x = 0; x < size; ++x) {
 			for (int y = 0; y < size; ++y) {
 				for (int z = 0; z < size; ++z) {
 					XMFLOAT4X4 wld;
-					XMStoreFloat4x4(&wld, XMMatrixTranslation(x*5.f, y*5.f+3.f, 12.f + z*5.f));
+					XMStoreFloat4x4(&wld, XMMatrixScaling(0.1f, 0.1f, 0.1f) * XMMatrixTranslation(x*0.5f, y*0.5f + 5.f, z*0.5f + 10.f));
 					ros.push_back(make_shared<render_object>(cube_mesh,
 						material(
 							XMFLOAT4(	0.1f + ((float)x / (float)size), 
@@ -58,14 +58,14 @@ struct test_app : public DXWindow, public DXDevice {
 						wld));
 				}
 			}
-		}
+		}*/
 
 		XMFLOAT4X4 w; XMStoreFloat4x4(&w, XMMatrixScaling(16.f, 0.2f, 16.f) );
 		ros.push_back(make_shared<render_object>(cube_mesh, material(XMFLOAT4(0.2f, 0.2f, 0.2f,1.f)), w));
 
 		/*string mpth = "C:\\Users\\andre\\Downloads\\3DModels\\crytek-sponza\\";
 		scn = imp.ReadFile(mpth+"sponza.fbx", aiProcessPreset_TargetRealtime_Fast);
-		XMFLOAT4X4 gblscl; XMStoreFloat4x4(&gblscl, XMMatrixScaling(0.2f, 0.2f, 0.2f));
+		XMFLOAT4X4 gblscl; XMStoreFloat4x4(&gblscl, XMMatrixScaling(0.02f, 0.02f, 0.02f));
 		for (int m = 0; m < scn->mNumMeshes; ++m) {
 			vector<vertex> v; vector<uint32_t> i;
 			load_aimesh(scn->mMeshes[m], v, i);
@@ -73,7 +73,8 @@ struct test_app : public DXWindow, public DXDevice {
 			aiColor3D dc,sc;
 			aim->Get(AI_MATKEY_COLOR_DIFFUSE, dc);
 			aim->Get(AI_MATKEY_COLOR_SPECULAR, sc);
-			auto ro = make_shared<render_object>(make_shared<mesh>(this, commandList, v, i), material(as_xmf4(dc), as_xmf4(sc)), gblscl);
+			auto ro = make_shared<render_object>(make_shared<mesh>(this, commandList, v, i), 
+				material(as_xmf4(dc), as_xmf4(sc)), gblscl);
 			ros.push_back(ro);
 			aiString pth;
 			if (aim->GetTexture(aiTextureType_DIFFUSE, 0, &pth) == aiReturn_SUCCESS) {
@@ -129,7 +130,7 @@ struct test_app : public DXWindow, public DXDevice {
 		//dfr->ros[1]->mat->diffuse_color = XMFLOAT4(cos(t)*.5f + .5f, sin(t)*.5f + .5f, cos(1.f - t)*.5f + .5f, 1.f);
 
 		XMStoreFloat4x4(dfr->ros[1]->world, 
-			XMMatrixScaling(50.f,50.f,50.f)*XMMatrixRotationRollPitchYaw(t*.25, t*.5f, t*3.f)*XMMatrixTranslation(8.f, 5.f, 0.f));
+			XMMatrixScaling(50.f,50.f,50.f)*XMMatrixTranslation(8.f, 3.25f, 0.f));
 		
 	}
 
