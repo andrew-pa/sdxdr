@@ -10,8 +10,8 @@ const XMFLOAT4X4 identity_matrix =
 struct material {
 	XMFLOAT4 diffuse_color, specular_color;
 	material() :
-	 diffuse_color(1.f,1.f,1.f,1.f), specular_color(1.f,1.f,1.f,1.f) {}
-	material(XMFLOAT4 Kd, XMFLOAT4 Ks = XMFLOAT4(1.f, 1.f, 1.f, 1.f)) 
+	 diffuse_color(1.f,1.f,1.f,1.f), specular_color(1.f,1.f,1.f,0.f) {}
+	material(XMFLOAT4 Kd, XMFLOAT4 Ks = XMFLOAT4(1.f, 1.f, 1.f, 0.f)) 
 		: diffuse_color(Kd), specular_color(Ks) {}
 };
 
@@ -24,6 +24,7 @@ struct render_object {
 	render_object(shared_ptr<mesh> m) : msh(m), world(nullptr), mat(nullptr), texture(nullptr) {}
 	render_object(shared_ptr<mesh> m, material mt, XMFLOAT4X4 wld = identity_matrix, ComPtr<ID3D12Resource> tx = nullptr) 
 		: msh(m), world(new XMFLOAT4X4(wld)), mat(new material(mt)), texture(tx) {}
+
 };
 
 struct camera {
@@ -42,42 +43,6 @@ struct directional_light {
 		: direction(d), color(c), casts_shadow(cshdw), scene_radius(scrrad) {	}
 };
 
-struct pass {
-	ComPtr<ID3D12RootSignature> root_sig;
-	ComPtr<ID3D12PipelineState> pipeline;
-
-	pass() : root_sig(nullptr), pipeline(nullptr) {}
-	pass(ComPtr<ID3D12RootSignature> rs, ComPtr<ID3D12PipelineState> ps)
-		: root_sig(rs), pipeline(ps) { }
-
-	pass(DXDevice* dv,
-		vector<CD3DX12_ROOT_PARAMETER> rs_params, vector<CD3DX12_STATIC_SAMPLER_DESC> stat_smps,
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC pdsc,
-		wstring name = wstring(),
-		D3D12_ROOT_SIGNATURE_FLAGS rsf = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT) 
-	{
-		dv->create_root_signature(rs_params, stat_smps, root_sig, true, 
-			(name + wstring(L" Root Signature")).c_str(), rsf);
-		pdsc.pRootSignature = root_sig.Get();
-		chk(dv->device->CreateGraphicsPipelineState(&pdsc, IID_PPV_ARGS(&pipeline)));
-		pipeline->SetName((name + wstring(L" Pipeline")).c_str());
-	}
-
-	pass(DXDevice* dv, ComPtr<ID3D12RootSignature> exisitingRS,
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC pdsc,
-		wstring name = wstring()) :
-		root_sig(exisitingRS)
-	{
-		pdsc.pRootSignature = exisitingRS.Get();
-		chk(dv->device->CreateGraphicsPipelineState(&pdsc, IID_PPV_ARGS(&pipeline)));
-		pipeline->SetName((name + wstring(L" Pipeline")).c_str());
-	}
-
-	void apply(ComPtr<ID3D12GraphicsCommandList> cmdlist) {
-		cmdlist->SetPipelineState(pipeline.Get());
-		cmdlist->SetGraphicsRootSignature(root_sig.Get());
-	}
-};
 
 /*
 	Usual world space deferred rendering

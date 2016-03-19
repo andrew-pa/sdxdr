@@ -215,8 +215,8 @@ void renderer::create_directional_light_pass() {
 	pdesc.SampleDesc.Count = 1;
 
 	dir_light_pass = pass(dv, {
-		root_parameterh::constants(2, 0),
-		root_parameterh::constants(24, 1),
+		root_parameterh::constants(2+3, 0), //resolution + camera info
+		root_parameterh::constants(24, 1), //light info
 		root_parameterh::descriptor_table({ //geometry buffer
 			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, 0),
 			root_parameterh::descriptor_range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, 1),
@@ -358,7 +358,7 @@ void renderer::render_directional_light_pass(ComPtr<ID3D12GraphicsCommandList> c
 
 			vL = XMLoadFloat4(&l.direction);
 			ligP = XMMatrixOrthographicRH(l.scene_radius, l.scene_radius, 1.f, l.scene_radius);
-			ligV = XMMatrixLookToRH(vL*(l.scene_radius-0.1f), -vL, XMVectorSet(1, 0, 0, 0));
+			ligV = XMMatrixLookToRH(vL*(l.scene_radius), -vL, XMVectorSet(1, 0, 0, 0));
 			XMStoreFloat4x4(&ligT, ligV * ligP);
 
 			draw_geometry(cmdlist, false, &ligT);
@@ -376,6 +376,7 @@ void renderer::render_directional_light_pass(ComPtr<ID3D12GraphicsCommandList> c
 		cmdlist->SetDescriptorHeaps(1, &rtsrv_heap.heap);
 
 		cmdlist->SetGraphicsRoot32BitConstants(0, 2, &res, 0);
+		cmdlist->SetGraphicsRoot32BitConstants(0, 3, &cam.position, 2);
 
 		cmdlist->SetGraphicsRootDescriptorTable(2, rtsrv_heap.gpu_handle(0));
 		cmdlist->SetGraphicsRootDescriptorTable(3, rtsrv_heap.gpu_handle(5));
