@@ -30,19 +30,19 @@ struct test_app : public DXWindow, public DXDevice {
 		commandList = create_command_list(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
 		vector<vertex> v; vector<uint32_t> i;
-		generate_cube_mesh(v, i, XMFLOAT3(3.f, 3.f, 3.f));
+		tie(v,i) = generate_cube_mesh(XMFLOAT3(3.f, 3.f, 3.f));
 		auto cube_mesh = make_shared<mesh>(this, commandList, v, i);
 		ros.push_back(make_shared<render_object>(cube_mesh));
-		load_texture(this, commandList, ws2s(GetAssetFullPath(L"test.tga")), ros[0]->texture);
+		load_texture(commandList, ws2s(GetAssetFullPath(L"test.tga")), ros[0]->texture);
 //		ros.push_back(make_shared<render_object>(cube_mesh));
 
 		Assimp::Importer imp;
-		auto scn = imp.ReadFile(ws2s(GetAssetFullPath(L"thing.fbx")),
+		/*auto scn = imp.ReadFile(ws2s(GetAssetFullPath(L"thing.fbx")),
 			aiProcessPreset_TargetRealtime_Quality);
 		load_aimesh(scn->mMeshes[0], v, i);
 		ros.push_back(make_shared<render_object>(
 			make_shared<mesh>(this, commandList, v, i),
-			material(XMFLOAT4(0.85f, 0.9f, 0.9f, 1.f))));
+			material(XMFLOAT4(0.85f, 0.9f, 0.9f, 1.f))));*/
 
 		/*const int size = 4;
 		for (int x = 0; x < size; ++x) {
@@ -63,8 +63,8 @@ struct test_app : public DXWindow, public DXDevice {
 		XMFLOAT4X4 w; XMStoreFloat4x4(&w, XMMatrixScaling(16.f, 0.2f, 16.f) );
 		ros.push_back(make_shared<render_object>(cube_mesh, material(XMFLOAT4(0.2f, 0.2f, 0.2f,1.f)), w));
 
-		/*string mpth = "C:\\Users\\andre\\Downloads\\3DModels\\crytek-sponza\\";
-		scn = imp.ReadFile(mpth+"sponza.fbx", aiProcessPreset_TargetRealtime_Fast);
+		string mpth = "C:\\Users\\andre\\Downloads\\3DModels\\sponza\\";
+		auto scn = imp.ReadFile(mpth+"sponza.obj", aiProcessPreset_TargetRealtime_Fast);
 		XMFLOAT4X4 gblscl; XMStoreFloat4x4(&gblscl, XMMatrixScaling(0.02f, 0.02f, 0.02f));
 		for (int m = 0; m < scn->mNumMeshes; ++m) {
 			vector<vertex> v; vector<uint32_t> i;
@@ -78,10 +78,10 @@ struct test_app : public DXWindow, public DXDevice {
 			ros.push_back(ro);
 			aiString pth;
 			if (aim->GetTexture(aiTextureType_DIFFUSE, 0, &pth) == aiReturn_SUCCESS) {
-				load_texture(this, commandList, mpth + pth.C_Str(),
+				load_texture(commandList, mpth + pth.C_Str(),
 					ro->texture);
 			}
-		}*/
+		}
 
 		XMFLOAT4 l = XMFLOAT4(0.f, 1.f, 0.0f, 0.f);
 
@@ -93,13 +93,13 @@ struct test_app : public DXWindow, public DXDevice {
 		dfr = make_unique<renderer>(this, this, ros);
 		dfr->directional_lights.push_back(
 			directional_light(XMFLOAT4(0.2f, .7f, .3f, 0.f),
-				XMFLOAT4(1.f, .9f, .8f, 1.f), true));
+				XMFLOAT4(1.f, .9f, .8f, 1.f), false));
 		dfr->directional_lights.push_back(
 			directional_light(XMFLOAT4(0.2f, .7f, -.3f, 0.f),
-				XMFLOAT4(.9f, 1.f, .8f, 1.f), true));
+				XMFLOAT4(.9f, 1.f, .8f, 1.f), false));
 		dfr->directional_lights.push_back(
 			directional_light(XMFLOAT4(-0.2f, .7f, .3f, 0.f),
-				XMFLOAT4(.8f, .9f, 1.f, 1.f), true));
+				XMFLOAT4(.8f, .9f, 1.f, 1.f), false));
 
 		dfr->directional_lights.push_back(
 			directional_light(XMFLOAT4(-0.2f, -.5f, -.6f, 0.f),

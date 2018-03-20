@@ -1,7 +1,5 @@
 #include "renderer.h"
 
-const float color_black[] = { 0.f,0.f,0.f,0.f };
-const float color_white[] = { 1.f,1.f,1.f,1.f };
 
 #pragma region Initalization
 uint32_t count_textured_objects(const vector<shared_ptr<render_object>>& ros) {
@@ -29,6 +27,8 @@ renderer::renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_obje
 		D3D12_RESOURCE_DESC rsd = {};
 		rsd.Width = rsd.Height = 1;
 		D3D12_SUBRESOURCE_DATA txd = {};
+
+		static const float color_white[] = { 1.f,1.f,1.f,1.f };
 		txd.pData = color_white;
 
 		rsd.MipLevels = 1;
