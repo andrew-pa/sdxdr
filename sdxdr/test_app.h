@@ -1,11 +1,8 @@
 #pragma once
 #include "dxut\dxut.h"
-
 #include "meshloader.h"
-
 #include "renderer.h"
-
-
+#include "DXRDevice.h"
 
 inline XMFLOAT4 as_xmf4(const aiColor3D& c) {
 	return XMFLOAT4(c.r, c.g, c.b, 1.f);
@@ -14,17 +11,16 @@ inline XMFLOAT4 as_xmf4(const aiColor3D& c) {
 struct test_app : public DXWindow, public DXDevice {
 	
 	test_app()
-		: DXWindow(1280, 960, L"sdxdr test"), DXDevice(), dfr(nullptr) {}
+		: DXWindow(1280, 960, L"sdxdr test"), DXDevice(), dfr(nullptr), dxr((DXDevice*)this) {}
 
+	DXRDevice dxr;
 	unique_ptr<renderer> dfr;
-
 	StepTimer tim;
-
 	SimpleCamera cam;
-
 
 	void OnInit() override {
 		init_d3d(this);
+		dxr.init_dxr(false);
 		vector<shared_ptr<render_object>> ros;
 
 		commandList = create_command_list(D3D12_COMMAND_LIST_TYPE_DIRECT);
@@ -36,7 +32,7 @@ struct test_app : public DXWindow, public DXDevice {
 		load_texture(commandList, ws2s(GetAssetFullPath(L"test.tga")), ros[0]->texture);
 //		ros.push_back(make_shared<render_object>(cube_mesh));
 
-		Assimp::Importer imp;
+		//Assimp::Importer imp;
 		/*auto scn = imp.ReadFile(ws2s(GetAssetFullPath(L"thing.fbx")),
 			aiProcessPreset_TargetRealtime_Quality);
 		load_aimesh(scn->mMeshes[0], v, i);
@@ -63,7 +59,10 @@ struct test_app : public DXWindow, public DXDevice {
 		XMFLOAT4X4 w; XMStoreFloat4x4(&w, XMMatrixScaling(16.f, 0.2f, 16.f) );
 		ros.push_back(make_shared<render_object>(cube_mesh, material(XMFLOAT4(0.2f, 0.2f, 0.2f,1.f)), w));
 
-		string mpth = "C:\\Users\\andre\\Downloads\\3DModels\\sponza\\";
+		XMStoreFloat4x4(&w, XMMatrixScaling(.5f, 4.f, 3.f)*XMMatrixTranslation(0.f, 6.f, 0.f) );
+		ros.push_back(make_shared<render_object>(cube_mesh, material(XMFLOAT4(0.6f, 0.3f, 0.1f,1.f)), w));
+
+		/*string mpth = "C:\\Users\\andre\\Downloads\\3DModels\\";
 		auto scn = imp.ReadFile(mpth+"sponza.obj", aiProcessPreset_TargetRealtime_Fast);
 		XMFLOAT4X4 gblscl; XMStoreFloat4x4(&gblscl, XMMatrixScaling(0.02f, 0.02f, 0.02f));
 		for (int m = 0; m < scn->mNumMeshes; ++m) {
@@ -81,7 +80,7 @@ struct test_app : public DXWindow, public DXDevice {
 				load_texture(commandList, mpth + pth.C_Str(),
 					ro->texture);
 			}
-		}
+		}*/
 
 		XMFLOAT4 l = XMFLOAT4(0.f, 1.f, 0.0f, 0.f);
 
@@ -93,13 +92,13 @@ struct test_app : public DXWindow, public DXDevice {
 		dfr = make_unique<renderer>(this, this, ros);
 		dfr->directional_lights.push_back(
 			directional_light(XMFLOAT4(0.2f, .7f, .3f, 0.f),
-				XMFLOAT4(1.f, .9f, .8f, 1.f), false));
+				XMFLOAT4(1.f, .9f, .8f, 1.f), true));
 		dfr->directional_lights.push_back(
 			directional_light(XMFLOAT4(0.2f, .7f, -.3f, 0.f),
-				XMFLOAT4(.9f, 1.f, .8f, 1.f), false));
+				XMFLOAT4(.9f, 1.f, .8f, 1.f), true));
 		dfr->directional_lights.push_back(
 			directional_light(XMFLOAT4(-0.2f, .7f, .3f, 0.f),
-				XMFLOAT4(.8f, .9f, 1.f, 1.f), false));
+				XMFLOAT4(.8f, .9f, 1.f, 1.f), true));
 
 		dfr->directional_lights.push_back(
 			directional_light(XMFLOAT4(-0.2f, -.5f, -.6f, 0.f),
@@ -123,14 +122,14 @@ struct test_app : public DXWindow, public DXDevice {
 		dfr->cam.position = cam.GetPosition();
 
 		float t = tim.GetTotalSeconds();
-		XMStoreFloat4x4(dfr->ros[0]->world, XMMatrixRotationRollPitchYaw(t, t*.6f, t*.4f)*XMMatrixTranslation(0.f, 4.f, 0.f));
+		XMStoreFloat4x4(dfr->ros[0]->world, XMMatrixRotationRollPitchYaw(t, t*.6f, t*.4f)*XMMatrixTranslation(4.f, 4.f, 0.f));
 		dfr->ros[0]->mat->diffuse_color = XMFLOAT4(sin(t)*.5f+.5f, cos(t)*.5f+.5f, sin(1.f-t)*.5f+.5f, 1.f);
 	
 		//XMStoreFloat4x4(dfr->ros[1]->world, /*XMMatrixRotationRollPitchYaw(t*.25, t*.5f, t)*/XMMatrixTranslation(6.f, 4.f, 0.f));
 		//dfr->ros[1]->mat->diffuse_color = XMFLOAT4(cos(t)*.5f + .5f, sin(t)*.5f + .5f, cos(1.f - t)*.5f + .5f, 1.f);
 
-		XMStoreFloat4x4(dfr->ros[1]->world, 
-			XMMatrixScaling(50.f,50.f,50.f)*XMMatrixTranslation(8.f, 3.25f, 0.f));
+		/*XMStoreFloat4x4(dfr->ros[1]->world, 
+			XMMatrixScaling(50.f,50.f,50.f)*XMMatrixTranslation(8.f, 3.25f, 0.f));*/
 		
 	}
 

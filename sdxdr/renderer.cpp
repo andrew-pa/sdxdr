@@ -142,6 +142,49 @@ renderer::renderer(DXDevice* d, DXWindow* w, const vector<shared_ptr<render_obje
 	dv->free_shaders();
 }
 
+void renderer::build_raytracing_acceleration_structure() {
+	D3D12_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_DESC prebuild_info_req;
+	prebuild_info_req.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	prebuild_info_req.NumDescs = geometry.size();
+
+	prebuild_info_req.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+	prebuild_info_req.pGeometryDescs = nullptr;
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO toplvl_prebuild_info;
+	if (dxr_enabled)
+		dxr_dev->GetRaytracingAccelerationStructurePrebuildInfo(&prebuild_info_req, &toplvl_prebuild_info);
+	else
+		rtr_dev->GetRaytracingAccelerationStructurePrebuildInfo(&prebuild_info_req, &toplvl_prebuild_info);
+	assert(toplvl_prebuild_info.ResultDataMaxSizeInBytes > 0);
+
+	prebuild_info_req.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+	prebuild_info_req.pGeometryDescs = geometry.data();
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO botlvl_prebuild_info;
+	if (dxr_enabled)
+		dxr_dev->GetRaytracingAccelerationStructurePrebuildInfo(&prebuild_info_req, &botlvl_prebuild_info);
+	else
+		rtr_dev->GetRaytracingAccelerationStructurePrebuildInfo(&prebuild_info_req, &botlvl_prebuild_info);
+	assert(botlvl_prebuild_info.ResultDataMaxSizeInBytes > 0);
+
+	auto heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	auto res = dev->new_upload_resource(&heap_prop,
+		D3D12_HEAP_FLAG_NONE, &CD3DX12_RESOURCE_DESC::Buffer(
+			max(toplvl_prebuild_info.ScratchDataSizeInBytes, botlvl_prebuild_info.ScratchDataSizeInBytes),
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	ComPtr<ID3D12Resource> toplvl_accls, botlvl_accls;
+	auto init_accls_state = dxr_enabled ? D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE : rtr_dev->GetAccelerationStructureResourceState();
+	dev->device->CreateCommittedResource(&heap_prop, D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(botlvl_prebuild_info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+		init_accls_state, nullptr, IID_PPV_ARGS(&botlvl_accls));
+	dev->device->CreateCommittedResource(&heap_prop, D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(toplvl_prebuild_info.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS),
+		init_accls_state, nullptr, IID_PPV_ARGS(&toplvl_accls));
+
+	ComPtr<ID3D12Resource> instance_desc;
+}
 
 const D3D12_INPUT_ELEMENT_DESC basic_input_layout[] =
 {
@@ -300,6 +343,8 @@ void renderer::create_postprocess_pass() {
 		CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_MIN_MAG_MIP_POINT)
 	}, pdesc, L"Postprocess Render");
 }
+
+void renderer
 #pragma endregion
 
 #pragma region Rendering

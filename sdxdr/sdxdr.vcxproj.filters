@@ -113,6 +113,9 @@
     <ClInclude Include="soil\stbi_DDS_aug_c.h">
       <Filter>Header Files\soil</Filter>
     </ClInclude>
+    <ClInclude Include="DXRDevice.h">
+      <Filter>Header Files\dxut</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="basic.ps.hlsl">

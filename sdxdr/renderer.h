@@ -1,6 +1,8 @@
 #pragma once
 #include "dxut\dxut.h"
 
+#include "DXRDevice.h"
+
 const XMFLOAT4X4 identity_matrix = 
 	XMFLOAT4X4(	1, 0, 0, 0, 
 				0, 1, 0, 0, 
@@ -51,6 +53,7 @@ struct directional_light {
 */
 class renderer {
 	DXDevice* dv;
+	DXRDevice* dr;
 	DXWindow* window;
 
 	descriptor_heap ro_cbv_heap;
@@ -111,6 +114,9 @@ class renderer {
 	pass postprocess_pass;
 	void create_postprocess_pass();
 	void render_postprocess_pass(ComPtr<ID3D12GraphicsCommandList> cmdlist);
+
+	//-- Raytracing --
+	void build_raytracing_acceleration_structure();
 public:
 	vector<shared_ptr<render_object>> ros;
 

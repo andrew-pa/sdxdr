@@ -76,11 +76,11 @@
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>C:\Users\andre\Source\bullet3\src;C:\Users\andre\Source\share\include;C:\Users\andre\Source\dxut\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <PreprocessorDefinitions>SOIL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>SOIL;DXR;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;C:\Users\andre\Source\share\lib\Debug\assimp-vc140-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>C:\Users\andre\Source\DXRSDK_v0.09.01\samples\FallbackLayer\$(Configuration)\FallbackLayer.lib;d3d12.lib;dxgi.lib;C:\Users\andre\Source\share\lib\Debug\assimp-vc140-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -89,11 +89,11 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>C:\Users\andre\Source\bullet3\src;C:\Users\andre\Source\share\include;C:\Users\andre\Source\dxut\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>SOIL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>SOIL;DXR;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;dxgi.lib;C:\Users\andre\Source\share\lib\Debug\assimp-vc140-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>C:\Users\andre\Source\DXRSDK_v0.09.01\samples\FallbackLayer\$(Configuration)\FallbackLayer.lib;d3d12.lib;dxgi.lib;C:\Users\andre\Source\share\lib\Debug\assimp-vc140-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -147,6 +147,7 @@
     <ClInclude Include="..\..\dxut\inc\dxut\mesh.h" />
     <ClInclude Include="..\..\dxut\inc\dxut\SimpleCamera.h" />
     <ClInclude Include="..\..\dxut\inc\dxut\StepTimer.h" />
+    <ClInclude Include="DXRDevice.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="meshloader.h" />
     <ClInclude Include="soil\image_DXT.h" />
@@ -211,6 +212,7 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
